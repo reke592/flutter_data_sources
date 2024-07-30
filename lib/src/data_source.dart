@@ -110,8 +110,8 @@ class DataSource<T> {
   /// reset the current value of [BehaviorSubject] to [defaultValue] without closing the stream.
   Future<void> reset() async {
     _log('reset');
-    _stream!.value = defaultValue;
-    await _stream!.done;
+    _stream?.value = defaultValue;
+    await _stream?.done;
   }
 
   /// map and emit data to stream

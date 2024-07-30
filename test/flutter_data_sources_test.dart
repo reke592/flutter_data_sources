@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_data_sources/flutter_data_sources.dart';
 
 void main() {
+  const responseDelayMS = 100;
   const defaultListInt = <int>[];
   const defaultListString = <String>[];
   const defaultListObject = <Map<String, dynamic>>[];
@@ -52,8 +53,31 @@ void main() {
         id: (param) => '${param?.id ?? ''}',
         mapper: mapper3,
       ),
+      DataSource<List<int>>(
+        name: 'list of int delayed',
+        request: (param, cancellation) async {
+          await Future.delayed(const Duration(milliseconds: responseDelayMS));
+          return jsonListInt;
+        },
+        defaultValue: defaultListInt,
+        id: (param) => '${param?.id ?? ''}',
+        mapper: mapper1,
+        logging: true,
+        rememberError: true,
+      ),
+      DataSource<List<int>>(
+        name: 'list of int delayed remember error false',
+        request: (param, cancellation) async {
+          await Future.delayed(const Duration(milliseconds: responseDelayMS));
+          return jsonListInt;
+        },
+        defaultValue: defaultListInt,
+        id: (param) => '${param?.id ?? ''}',
+        mapper: mapper1,
+        logging: true,
+      ),
     ];
-    sut = DataRepository(sources);
+    sut = DataRepository(sources, logging: true);
   });
 
   tearDown(() {
@@ -128,5 +152,68 @@ void main() {
         defaultListObject,
       ]),
     );
+  });
+
+  test(
+      'on cancellation of request, it should NOT add the request result in stream',
+      () async {
+    const resource = 'list of int delayed';
+    List events = [];
+    var s1 = sut.listen(
+      'test',
+      resource,
+      onData: (data) => events.add(data),
+      onError: (error, stack) => events.add(error),
+    );
+    var token = CancellationToken();
+    sut.request(resource, cancellationToken: token);
+    // wait for half duration of response delay
+    await Future.delayed(
+      const Duration(milliseconds: responseDelayMS ~/ 2),
+      token.cancel,
+    );
+    await Future.delayed(const Duration(milliseconds: responseDelayMS + 100));
+    expect(
+      events,
+      equals([
+        defaultListInt, // initial
+        isA<Exception>(),
+      ]),
+    );
+    s1.cancel();
+  });
+
+  test(
+      '''on cancellation of a request, and when [DataSource] remember error is false,
+      it should always add the previous successful data so the [BehaviorStream] snapshot always has readable data.''',
+      () async {
+    const resource = 'list of int delayed remember error false';
+    List events = [];
+    var s1 = sut.listen(
+      'test',
+      resource,
+      onData: (data) => events.add(data),
+      onError: (error, stack) => events.add(error),
+    );
+    var token = CancellationToken();
+    sut.request(
+      resource,
+      cancellationToken: token,
+    );
+    // wait for half duration of response delay
+    await Future.delayed(
+      const Duration(milliseconds: responseDelayMS ~/ 2),
+      token.cancel,
+    );
+    await Future.delayed(const Duration(milliseconds: responseDelayMS + 100));
+    expect(
+      events,
+      equals([
+        defaultListInt, // initial
+        isA<Exception>(),
+        defaultListInt,
+      ]),
+    );
+    s1.cancel();
   });
 }
