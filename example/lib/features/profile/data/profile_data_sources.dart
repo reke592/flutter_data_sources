@@ -11,5 +11,6 @@ final profileDataSource = [
     mapper: (value) => Profile.fromJson(value),
     defaultValue: Profile.empty,
     availableOffline: true,
+    logging: true,
   ),
 ];

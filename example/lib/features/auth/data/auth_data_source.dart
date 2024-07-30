@@ -19,6 +19,7 @@ final authDataSource = [
     },
     mapper: (value) => Session.fromJson(value),
     defaultValue: Session.empty,
+    logging: true,
   ),
   DataSource<bool?>(
     name: 'logout',
